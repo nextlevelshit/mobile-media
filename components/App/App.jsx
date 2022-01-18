@@ -3,14 +3,30 @@ import { useLazyQuery } from "@apollo/react-hooks";
 import { gql } from "apollo-boost";
 import { DataPointList } from "../";
 
-import { PageLayout, Title, Message } from "./App.styles";
+import { PageLayout, Title, Message, Footer } from "./App.styles";
 
 export const GET_DATA_POINTS = gql`
   query DataPoints {
     dataPoints {
       id
-      value
+      browser
+      os
+      type
+      model
+      cpu
+      gpu
       timestamp
+    }
+  }
+`;
+
+export const GET_POLLS = gql`
+  query Polls {
+    polls {
+      id
+      timestamp
+      question
+      answers
     }
   }
 `;
@@ -19,9 +35,13 @@ const App = () => {
   const [getDataPoints, { called, loading, error, data }] = useLazyQuery(
     GET_DATA_POINTS
   );
+  const [getPolls, { data: polls }] = useLazyQuery(
+    GET_POLLS
+  );
 
   useEffect(() => {
     getDataPoints();
+    getPolls();
   }, []);
 
   if ((called && loading) || !data) {
@@ -39,8 +59,11 @@ const App = () => {
 
   return (
     <PageLayout>
-      <Title>Ben's Awesome Docker Next App</Title>
+      <pre>{JSON.stringify(polls, null, 2)}</pre>
       <DataPointList data={data} />
+      <Footer>
+        SS2022 - Mobile Media - Leibniz FH
+      </Footer>
     </PageLayout>
   );
 };

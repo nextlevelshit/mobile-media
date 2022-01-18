@@ -8,8 +8,8 @@ export const PageLayout = styled.div`
 `;
 
 export const Title = styled.h1`
-  font-family: galada, verdana;
-  font-size: 4.6rem;
+  font-family: Consolas, monospace;
+  font-size: 2rem;
   letter-spacing: 0.15rem;
   color: ${({ theme }) => theme.colors.darkBlue};
 `;
@@ -31,4 +31,14 @@ export const Message = styled.p`
     if (type === "error") return theme.colors.lightRed;
   }};
   border-radius: 0.5rem;
+`;
+
+export const Footer = styled.footer`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 2rem;
+  text-align: center;
+  background: ${({ theme }) => theme.colors.lightGray};
 `;

@@ -5,23 +5,50 @@ import {
   deleteRecord,
   readAllRecords,
   updateRecord,
+  createPoll,
+  updatePoll,
+  deletePoll
 } from "../../database";
 
 const typeDefs = gql`
   type DataPoint {
     id: ID
     value: String
+    id: String
+    browser: String
+    os: String
+    type: String
+    model: String
+    cpu: String
+    gpu: String
     timestamp: String
+  }
+  
+  type Poll {
+    id: ID
+    question: String
+    answers: [Answer]
+    count: String
+  }
+  
+  type Answer {
+    answer: String
+    counts: Int
   }
 
   type Query {
     dataPoints: [DataPoint]
+    polls: [Poll]
   }
 
   type Mutation {
-    createDataPoint(id: ID!, value: String!, timestamp: String!): DataPoint
-    updateDataPoint(id: ID!, value: String!, timestamp: String!): DataPoint
-    deleteDataPoint(id: ID!): DataPoint
+    createDataPoint(id: ID!, timestamp: String!, value: String, type: String!, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
+    updateDataPoint(id: ID!, timestamp: String!, value: String, type: String, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
+    deleteDataPoint(id: ID!): DataPoints
+    
+    createPoll(id: ID!, question: String!, answers: [Answer]): Poll
+    updatePoll(id: ID!, question: String!, answers: [Answer]): Poll
+    deletePoll(id: ID!): Poll
   }
 `;
 
@@ -41,9 +68,7 @@ const resolvers = {
     createDataPoint: async (parent, args) => {
       const { client, db } = await createDbConnection();
 
-      const { id, value, timestamp } = args;
-
-      await createRecord(db, id, value, timestamp);
+      await createRecord(db, args);
       client.close();
 
       return args;
@@ -66,6 +91,33 @@ const resolvers = {
       const { id } = args;
 
       await deleteRecord(db, id);
+      client.close();
+
+      return args;
+    },
+
+    createPoll: async (parent, args) => {
+      const { client, db } = await createDbConnection();
+
+      await createPoll(db, args);
+      client.close();
+
+      return args;
+    },
+
+    updatePoll: async (parent, args) => {
+      const { client, db } = await createDbConnection();
+
+      await updatePoll(db, args);
+      client.close();
+
+      return args;
+    },
+
+    deletePoll: async (parent, args) => {
+      const { client, db } = await createDbConnection();
+
+      await deletePoll(db, args);
       client.close();
 
       return args;

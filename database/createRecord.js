@@ -1,6 +1,7 @@
-const createRecord = (db, id, value, timestamp) => {
+const createRecord = (db, {...newRecord}) => {
   const p = new Promise((resolve, reject) => {
-    const newRecord = { id, value, timestamp };
+
+    console.log(newRecord);
 
     db.collection(process.env.COL_NAME).insertOne(
       newRecord,
