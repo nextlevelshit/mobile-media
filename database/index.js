@@ -6,3 +6,4 @@ export { default as deleteRecord } from "./deleteRecord";
 export { default as createPoll } from "./createPoll";
 export { default as updatePoll } from "./updatePoll";
 export { default as deletePoll } from "./deletePoll";
+export { default as readPoll } from "./readPoll";

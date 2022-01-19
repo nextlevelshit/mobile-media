@@ -5,6 +5,7 @@ import {
   deleteRecord,
   readAllRecords,
   updateRecord,
+  readPoll,
   createPoll,
   updatePoll,
   deletePoll
@@ -14,7 +15,6 @@ const typeDefs = gql`
   type DataPoint {
     id: ID
     value: String
-    id: String
     browser: String
     os: String
     type: String
@@ -42,12 +42,12 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    createDataPoint(id: ID!, timestamp: String!, value: String, type: String!, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
+    createDataPoint(id: ID!, timestamp: String!, value: String, type: String, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
     updateDataPoint(id: ID!, timestamp: String!, value: String, type: String, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
-    deleteDataPoint(id: ID!): DataPoints
+    deleteDataPoint(id: ID!): DataPoint
     
-    createPoll(id: ID!, question: String!, answers: [Answer]): Poll
-    updatePoll(id: ID!, question: String!, answers: [Answer]): Poll
+    createPoll(id: ID!, question: String!, answers: String): Poll
+    updatePoll(id: ID!, question: String!, answers: String): Poll
     deletePoll(id: ID!): Poll
   }
 `;
@@ -61,6 +61,14 @@ const resolvers = {
       client.close();
 
       return allRecords;
+    },
+    polls: async () => {
+      const { client, db } = await createDbConnection();
+
+      const allPolls = await readPoll(db);
+      client.close();
+
+      return allPolls;
     },
   },
 

@@ -1,10 +1,13 @@
 import { DataPoint } from "./components";
 import { ListContainer } from "./DataPointList.styles";
+import React from "react";
 
 const DataPointList = ({ data }) => {
   if (!data) return null;
 
   const { dataPoints } = data;
+
+  debugger
 
   const dataNotEmpty = dataPoints.length !== 0;
 
@@ -14,14 +17,7 @@ const DataPointList = ({ data }) => {
 
   return (
     <ListContainer>
-      {dataNotEmpty &&
-        dataPoints.map(item => <DataPoint key={item.id} {...item} />)}
-      <DataPoint
-        key={lastId + 1}
-        id={lastId + 1}
-        value=""
-        timestamp={Date.now()}
-      />
+      {dataNotEmpty && dataPoints.map(item => <DataPoint key={item.id} {...item} />)}
     </ListContainer>
   );
 };

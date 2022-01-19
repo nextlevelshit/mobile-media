@@ -1,13 +1,25 @@
-import { ApolloProvider } from "@apollo/react-hooks";
-import ApolloClient, { gql } from "apollo-boost";
+import {
+  ApolloClient,
+  InMemoryCache,
+  ApolloProvider
+} from "@apollo/client";
 import { App } from "../components";
+import React from "react";
 
 const Home = ({ host, protocol }) => {
   const uri = `${protocol}://${host}/api/graphql-data`;
 
   const client = new ApolloClient({
     uri,
+    cache: new InMemoryCache(),
+    defaultOptions: {
+      watchQuery: {
+        fetchPolicy: "cache-and-network"
+      }
+    }
   });
+
+  debugger
 
   return (
     <ApolloProvider client={client}>

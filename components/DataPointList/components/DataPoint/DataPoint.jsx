@@ -34,7 +34,9 @@ const DELETE_DATA_POINT = gql`
   }
 `;
 
-const DataPoint = ({ id, value, timestamp }) => {
+const DataPoint = ({ ...args }) => {
+  const { timestamp, id, value } = args
+
   const time = new Date(parseInt(timestamp)).toLocaleString();
   const [pointValue, setPointValue] = useState(value);
   const oldValue = useRef(pointValue);
@@ -120,7 +122,7 @@ const DataPoint = ({ id, value, timestamp }) => {
 
     updateDataPoint({
       variables: { id, value: pointValue, timestamp: timestamp.toString() },
-    });
+    }).then(console.log);
 
     oldValue.current = pointValue;
   };
@@ -133,14 +135,7 @@ const DataPoint = ({ id, value, timestamp }) => {
 
   return (
     <Point>
-      <Text>Time: {time}</Text>
-      <Editable
-        type="number"
-        value={pointValue}
-        onChange={onKeyPress}
-        onBlur={saveChange}
-      />
-      <DeleteButton onClick={deleteItem}>✗</DeleteButton>
+      <pre>{JSON.stringify(args, null, 2)}</pre>
     </Point>
   );
 };

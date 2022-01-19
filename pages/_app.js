@@ -4,6 +4,7 @@ import { ThemeProvider } from "styled-components";
 
 import { theme } from "../theme";
 import "../theme/globalStyles.css";
+import React from "react";
 
 export default class MyApp extends App {
   render() {
