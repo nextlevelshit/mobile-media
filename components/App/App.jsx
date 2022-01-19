@@ -1,19 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLazyQuery, useMutation } from "@apollo/react-hooks";
-import { gql } from "apollo-boost";
-
+import { gql, useLazyQuery, useMutation } from "@apollo/client";
 import { PageLayout, Title, Message, Footer } from "./App.styles";
+import { v4 as uuid } from "uuid";
+import * as UAParser from "ua-parser-js"
 
 export const GET_DATA_POINTS = gql`
   query DataPoints {
     dataPoints {
       id
-      browser
-      os
-      type
-      model
-      cpu
-      gpu
+      ua
+      value
       timestamp
     }
   }
@@ -32,7 +28,7 @@ export const GET_POLLS = gql`
 
 const CREATE_DATA_POINT = gql`
   mutation CreateDataPoint($id: ID!, $value: String!, $ua: String!, $timestamp: String!) {
-    createDataPoint(id: $id, value: $value, timestamp: $timestamp) {
+    createDataPoint(id: $id, value: $value, timestamp: $timestamp, ua: $ua) {
       id
       value
       ua
@@ -60,17 +56,6 @@ const DELETE_DATA_POINT = gql`
 `;
 
 const App = () => {
-  const [getDataPoints, { called, loading, error, data }] = useLazyQuery(
-    GET_DATA_POINTS
-  );
-  const [getPolls, { data: polls }] = useLazyQuery(
-    GET_POLLS
-  );
-  const [ua, setUa] = useState(null)
-  const time = new Date().toLocaleString();
-  const [pointValue, setPointValue] = useState(null);
-  const oldValue = useRef(pointValue);
-
   const updateCacheCreate = (
     cache,
     {
@@ -119,19 +104,29 @@ const App = () => {
     });
   };
 
+  const [getDataPoints, { called, loading, error, data }] = useLazyQuery(
+    GET_DATA_POINTS
+  );
+  const [getPolls, { data: polls }] = useLazyQuery(
+    GET_POLLS
+  );
   const [createDataPoint, { data: createData }] = useMutation(
     CREATE_DATA_POINT,
     {
       update: updateCacheCreate,
     }
   );
-
   const [updateDataPoint, { data: updateData }] = useMutation(SET_DATA_POINT);
-
   const [deleteDataPoint, { data: deleteData }] = useMutation(
     DELETE_DATA_POINT,
     { update: updateCacheDelete }
   );
+
+  const [ua, setUa] = useState(null)
+  const time = new Date().toLocaleString();
+  const [pointValue, setPointValue] = useState(null);
+  const oldValue = useRef(pointValue);
+  const [id, setId] = useState(uuid());
 
   const saveChange = e => {
     if (oldValue.current === pointValue) return;
@@ -159,13 +154,31 @@ const App = () => {
     deleteDataPoint({ variables: { id } });
   };
 
+  const updateItem = (value) => {
+    updateDataPoint({
+      variables: {
+        id,
+        timestamp: new Date().toLocaleString(),
+        value
+      }
+    }).then(console.log).catch(console.warn);
+  }
+
   useEffect(() => {
     getDataPoints();
     getPolls();
   }, []);
 
   useEffect(() => {
-    debugger
+    if (!data) return
+
+    if (data?.dataPoints.length === 0 || data?.dataPoints.findIndex(({id: dataId}) => id === dataId) === -1) {
+      const ua = new UAParser().getUA();
+
+      createDataPoint({
+        variables: { id, ua, value: "-1", timestamp: new Date().toLocaleString() },
+      }).then(console.log);
+    }
   }, [data])
 
   if ((called && loading) || !data) {
@@ -183,6 +196,7 @@ const App = () => {
 
   return (
     <PageLayout>
+      <input type={"text"} ref={oldValue} onChange={(e) => updateItem(e.target.value)}/>
       <pre>{JSON.stringify(data, null, 2)}</pre>
       <pre>{JSON.stringify(polls, null, 2)}</pre>
       {/*<DataPointList data={data} />*/}

@@ -1,8 +1,5 @@
 const createRecord = (db, {...newRecord}) => {
   const p = new Promise((resolve, reject) => {
-
-    console.log(newRecord);
-
     db.collection(process.env.COL_NAME).insertOne(
       newRecord,
       (error, results) => {

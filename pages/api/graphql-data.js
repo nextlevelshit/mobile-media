@@ -15,20 +15,16 @@ const typeDefs = gql`
   type DataPoint {
     id: ID
     value: String
-    browser: String
-    os: String
-    type: String
-    model: String
-    cpu: String
-    gpu: String
+    ua: String
     timestamp: String
   }
   
   type Poll {
     id: ID
     question: String
-    answers: [Answer]
+    answers: String
     count: String
+    timestamp: String
   }
   
   type Answer {
@@ -42,11 +38,11 @@ const typeDefs = gql`
   }
 
   type Mutation {
-    createDataPoint(id: ID!, timestamp: String!, value: String, type: String, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
-    updateDataPoint(id: ID!, timestamp: String!, value: String, type: String, browser: String, os: String, model: String, cpu: String, gpu: String): DataPoint
+    createDataPoint(id: ID!, timestamp: String!, value: String, ua: String): DataPoint
+    updateDataPoint(id: ID!, timestamp: String!, value: String, ua: String): DataPoint
     deleteDataPoint(id: ID!): DataPoint
     
-    createPoll(id: ID!, question: String!, answers: String): Poll
+    createPoll(id: ID!, question: String!, answers: String, timestamp: String): Poll
     updatePoll(id: ID!, question: String!, answers: String): Poll
     deletePoll(id: ID!): Poll
   }

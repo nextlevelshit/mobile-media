@@ -19,8 +19,6 @@ const Home = ({ host, protocol }) => {
     }
   });
 
-  debugger
-
   return (
     <ApolloProvider client={client}>
       <App />

@@ -7,8 +7,6 @@ const DataPointList = ({ data }) => {
 
   const { dataPoints } = data;
 
-  debugger
-
   const dataNotEmpty = dataPoints.length !== 0;
 
   const lastId = dataNotEmpty
