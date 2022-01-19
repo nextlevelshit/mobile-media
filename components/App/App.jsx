@@ -3,17 +3,7 @@ import { gql, useLazyQuery, useMutation } from "@apollo/client";
 import { PageLayout, Title, Message, Footer } from "./App.styles";
 import { v4 as uuid } from "uuid";
 import * as UAParser from "ua-parser-js"
-
-export const GET_DATA_POINTS = gql`
-  query DataPoints {
-    dataPoints {
-      id
-      ua
-      value
-      timestamp
-    }
-  }
-`;
+import useLocalStorage from "use-local-storage";
 
 export const GET_POLLS = gql`
   query Polls {
@@ -22,6 +12,28 @@ export const GET_POLLS = gql`
       timestamp
       question
       answers
+    }
+  }
+`;
+
+const CREATE_POLL = gql`
+  mutation CreatePoll($id: ID!, $question: String!, $answers: String!, $timestamp: String!) {
+    createPoll(id: $id, question: $question, answers: $answers, timestamp: $timestamp) {
+      id
+      question
+      answers
+      timestamp
+    }
+  }
+`;
+
+export const GET_DATA_POINTS = gql`
+  query DataPoints {
+    dataPoints {
+      id
+      ua
+      value
+      timestamp
     }
   }
 `;
@@ -56,6 +68,33 @@ const DELETE_DATA_POINT = gql`
 `;
 
 const App = () => {
+  const [isAdmin] = useLocalStorage("admin", "");
+  const [question, setQuestion] = useState("Title");
+  const [answers, setAnswers] = useState(["", "", "", "", ""]);
+  const [userId] = useLocalStorage("userId", uuid());
+  const updateCacheCreatePoll = (
+    cache,
+    {
+      data: {
+        createPoll: { id, question, answers },
+      },
+    }
+  ) => {
+    const { polls } = cache.readQuery({
+      query: CREATE_POLL,
+    });
+
+    const updatedData = [
+      ...polls,
+      { id, question, answers, __typename: "Poll" },
+    ];
+
+    cache.writeQuery({
+      query: GET_DATA_POINTS,
+      data: { polls: updatedData },
+    });
+  };
+
   const updateCacheCreate = (
     cache,
     {
@@ -110,76 +149,83 @@ const App = () => {
   const [getPolls, { data: polls }] = useLazyQuery(
     GET_POLLS
   );
+  const [createPoll] = useMutation(
+    CREATE_POLL,
+    {
+      update: updateCacheCreatePoll,
+    }
+  );
   const [createDataPoint, { data: createData }] = useMutation(
     CREATE_DATA_POINT,
     {
       update: updateCacheCreate,
     }
   );
-  const [updateDataPoint, { data: updateData }] = useMutation(SET_DATA_POINT);
-  const [deleteDataPoint, { data: deleteData }] = useMutation(
+  const [updateDataPoint] = useMutation(SET_DATA_POINT);
+  const [deleteDataPoint] = useMutation(
     DELETE_DATA_POINT,
     { update: updateCacheDelete }
   );
-
-  const [ua, setUa] = useState(null)
-  const time = new Date().toLocaleString();
   const [pointValue, setPointValue] = useState(null);
   const oldValue = useRef(pointValue);
-  const [id, setId] = useState(uuid());
 
-  const saveChange = e => {
-    if (oldValue.current === pointValue) return;
+  const deleteItem = (id) => {
     if (pointValue === "") return;
 
-    if (oldValue.current === "") {
-      createDataPoint({
-        variables: { id, value: pointValue, timestamp: timestamp.toString() },
-      });
-      return;
-    }
-
-    console.log(timestamp, typeof timestamp);
-
-    updateDataPoint({
-      variables: { id, value: pointValue, timestamp: timestamp.toString() },
-    }).then(console.log);
-
-    oldValue.current = pointValue;
-  };
-
-  const deleteItem = () => {
-    if (pointValue === "") return;
-
-    deleteDataPoint({ variables: { id } });
+    deleteDataPoint({ variables: { id } }).then(console.log).catch(console.warn);
   };
 
   const updateItem = (value) => {
     updateDataPoint({
       variables: {
-        id,
+        id: userId,
         timestamp: new Date().toLocaleString(),
-        value
+        value: value.toString()
       }
     }).then(console.log).catch(console.warn);
   }
 
+  const count = (choice) => {
+    if (!data) return
+
+    return data?.dataPoints?.filter(({ value }) => value === choice)?.length || 0
+  }
+
+  const submitPoll = (event) => {
+    event.preventDefault();
+
+    createPoll({
+      variables: {
+        id: uuid(),
+        question,
+        answers: answers.toLocaleString(),
+        timestamp: new Date().toLocaleString()
+      }
+    }).then(console.log).catch(console.warn)
+  }
+
+  const updateAnswer = (key, value) => {
+    const newAnswers = [...answers]
+    newAnswers.splice(key, 1, value)
+    setAnswers(newAnswers)
+  }
+
   useEffect(() => {
-    getDataPoints();
-    getPolls();
+    getDataPoints().then(console.log);
+    getPolls().then(console.log);
   }, []);
 
   useEffect(() => {
     if (!data) return
 
-    if (data?.dataPoints.length === 0 || data?.dataPoints.findIndex(({id: dataId}) => id === dataId) === -1) {
+    if (data?.dataPoints.length === 0 || data?.dataPoints.findIndex(({id: dataId}) => userId === dataId) === -1) {
       const ua = new UAParser().getUA();
 
       createDataPoint({
-        variables: { id, ua, value: "-1", timestamp: new Date().toLocaleString() },
+        variables: { id: userId, ua, value: "-1", timestamp: new Date().toLocaleString() },
       }).then(console.log);
     }
-  }, [data])
+  }, [data]);
 
   if ((called && loading) || !data) {
     return <PageLayout />;
@@ -196,10 +242,32 @@ const App = () => {
 
   return (
     <PageLayout>
-      <input type={"text"} ref={oldValue} onChange={(e) => updateItem(e.target.value)}/>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
+      <form style={{ display: "flex", flexFlow: "column" }} onSubmit={(event) => submitPoll(event)}>
+        <input type={"text"} value={question} onChange={(event) => setQuestion(event.target.value)} disabled={!isAdmin} style={{marginBottom: "1rem"}}/>
+        {answers.map((answer, index) => {
+          return (
+            <div style={{padding: "0.8rem 0"}}>
+              <input type={"text"} value={answers[index]} onChange={(event) => updateAnswer(index, event.target.value)} disabled={!isAdmin} style={{marginRight: "0.3rem"}}/>
+              <button onClick={() => updateItem(index)}>{index}</button> [{count(index.toString())}]
+            </div>
+            )
+        })}
+        {isAdmin && <input type={"submit"} value={"Submit"} style={{marginTop: "1rem"}} />}
+      </form>
+      <ul>
+        {data && data?.dataPoints.map(({ id, ua, value}, index) => {
+          return (
+            <li key={`datapoint_${index}`}>
+              <pre>Browser: {JSON.stringify(new UAParser().getBrowser(ua))}</pre>
+              <pre>OS: {JSON.stringify(new UAParser().getOS(ua))}</pre>
+              <pre>Device: {JSON.stringify(new UAParser().getDevice(ua))}</pre>
+              <pre>{value}</pre>
+              {isAdmin && <button onClick={() => deleteItem(id)}>X</button>}
+            </li>
+          )
+        })}
+      </ul>
       <pre>{JSON.stringify(polls, null, 2)}</pre>
-      {/*<DataPointList data={data} />*/}
       <Footer>
         SS2022 - Mobile Media - Leibniz FH
       </Footer>
