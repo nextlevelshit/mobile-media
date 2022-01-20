@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { gql, useLazyQuery, useMutation } from "@apollo/client";
+import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
 import { PageLayout, Title, Message, Footer } from "./App.styles";
 import { v4 as uuid } from "uuid";
 import * as UAParser from "ua-parser-js"
 import useLocalStorage from "use-local-storage";
+import useInterval from "../../util/useInterval";
 
 export const GET_POLLS = gql`
   query Polls {
@@ -68,10 +69,12 @@ const DELETE_DATA_POINT = gql`
 `;
 
 const App = () => {
+  const [poll, setPoll] = useState({title: "Waiting is not a crime", answers: [[], []], timestamp: "..."});
   const [isAdmin] = useLocalStorage("admin", "");
   const [question, setQuestion] = useState("Title");
   const [answers, setAnswers] = useState(["", "", "", "", ""]);
   const [userId] = useLocalStorage("userId", uuid());
+  const [points, setPoints] = useState(null);
   const updateCacheCreatePoll = (
     cache,
     {
@@ -84,14 +87,14 @@ const App = () => {
       query: CREATE_POLL,
     });
 
-    const updatedData = [
+    const updatedPolls = [
       ...polls,
       { id, question, answers, __typename: "Poll" },
     ];
 
     cache.writeQuery({
-      query: GET_DATA_POINTS,
-      data: { polls: updatedData },
+      query: GET_POLLS,
+      data: { polls: updatedPolls },
     });
   };
 
@@ -143,7 +146,7 @@ const App = () => {
     });
   };
 
-  const [getDataPoints, { called, loading, error, data }] = useLazyQuery(
+  const [getDataPoints, { called, loading, error, data, refetch }] = useLazyQuery(
     GET_DATA_POINTS
   );
   const [getPolls, { data: polls }] = useLazyQuery(
@@ -188,19 +191,21 @@ const App = () => {
   const count = (choice) => {
     if (!data) return
 
-    return data?.dataPoints?.filter(({ value }) => value === choice)?.length || 0
+    return points?.filter(({ value }) => value === choice.toString())?.length || 0
   }
 
   const submitPoll = (event) => {
     event.preventDefault();
 
+    const variables = {
+      id: uuid(),
+      question,
+      answers: answers.toLocaleString(),
+      timestamp: new Date().toLocaleString()
+    };
+
     createPoll({
-      variables: {
-        id: uuid(),
-        question,
-        answers: answers.toLocaleString(),
-        timestamp: new Date().toLocaleString()
-      }
+      variables
     }).then(console.log).catch(console.warn)
   }
 
@@ -212,24 +217,44 @@ const App = () => {
 
   useEffect(() => {
     getDataPoints().then(console.log);
-    getPolls().then(console.log);
   }, []);
 
   useEffect(() => {
-    if (!data) return
+    if (data?.hasOwnProperty("dataPoints")) setPoints(data.dataPoints);
+  }, [data]);
 
-    if (data?.dataPoints.length === 0 || data?.dataPoints.findIndex(({id: dataId}) => userId === dataId) === -1) {
+  useEffect(() => {
+    if (!points) return
+
+    if (points?.findIndex(({id: dataId}) => userId === dataId) === -1) {
       const ua = new UAParser().getUA();
 
       createDataPoint({
         variables: { id: userId, ua, value: "-1", timestamp: new Date().toLocaleString() },
       }).then(console.log);
     }
-  }, [data]);
+  }, [points]);
 
-  if ((called && loading) || !data) {
-    return <PageLayout />;
-  }
+  useInterval(() => {
+    refetch().then(console.warn);
+
+    getPolls().then(({ data: { polls } }) => {
+      const p = [...polls].sort((a, b) => {
+        return Date.parse(b.timestamp) - Date.parse(a.timestamp)
+      }).pop();
+
+      const nextPoll = {
+        title: p?.question,
+        answers: p?.answers?.split(","),
+        timestamp: p?.timestamp
+      };
+
+      if (nextPoll.timestamp === poll.timestamp) return
+
+      console.log(">> new poll:", nextPoll, poll);
+      setPoll(nextPoll);
+    });
+  }, 997);
 
   if (error) {
     console.log(error);
@@ -242,32 +267,49 @@ const App = () => {
 
   return (
     <PageLayout>
-      <form style={{ display: "flex", flexFlow: "column" }} onSubmit={(event) => submitPoll(event)}>
-        <input type={"text"} value={question} onChange={(event) => setQuestion(event.target.value)} disabled={!isAdmin} style={{marginBottom: "1rem"}}/>
-        {answers.map((answer, index) => {
-          return (
-            <div style={{padding: "0.8rem 0"}}>
-              <input type={"text"} value={answers[index]} onChange={(event) => updateAnswer(index, event.target.value)} disabled={!isAdmin} style={{marginRight: "0.3rem"}}/>
-              <button onClick={() => updateItem(index)}>{index}</button> [{count(index.toString())}]
-            </div>
+      <article>
+        <header>
+          <Title>{poll?.title}</Title>
+        </header>
+        <section>
+          {poll?.answers?.map((answer, index) => {
+            const votes = count(index);
+            return <div style={{display: "flex", marginBottom: "1rem", alignItems: "center"}}>
+              <button style={{padding: "1rem 2rem", marginRight: "2rem", fontWeight: "bold", fontSize: "2rem"}} onClick={() => updateItem(index)}>{index}</button>
+              <div style={{fontSize: "2rem", marginBottom: "1rem"}}>{answer} <span style={{display: "inline-flex", backgroundColor: "purple", width: votes * 12 + "rem", padding: "0.3rem 0", color: "purple"}}>{votes}</span></div>
+            </div>;
+          })}
+        </section>
+      </article>
+
+      {isAdmin && <>
+        <form style={{ display: "flex", flexFlow: "column" }} onSubmit={(event) => submitPoll(event)}>
+          <input type={"text"} value={question} onChange={(event) => setQuestion(event.target.value)} disabled={!isAdmin} style={{marginBottom: "1rem"}}/>
+          {answers.map((answer, index) => {
+            return (
+              <div style={{padding: "0.8rem 0"}} key={`answer_${index}`}>
+                <input type={"text"} value={answers[index]} onChange={(event) => updateAnswer(index, event.target.value)} disabled={!isAdmin} style={{marginRight: "0.3rem"}}/>
+              </div>
             )
-        })}
-        {isAdmin && <input type={"submit"} value={"Submit"} style={{marginTop: "1rem"}} />}
-      </form>
-      <ul>
-        {data && data?.dataPoints.map(({ id, ua, value}, index) => {
-          return (
-            <li key={`datapoint_${index}`}>
-              <pre>Browser: {JSON.stringify(new UAParser().getBrowser(ua))}</pre>
-              <pre>OS: {JSON.stringify(new UAParser().getOS(ua))}</pre>
-              <pre>Device: {JSON.stringify(new UAParser().getDevice(ua))}</pre>
-              <pre>{value}</pre>
-              {isAdmin && <button onClick={() => deleteItem(id)}>X</button>}
-            </li>
-          )
-        })}
-      </ul>
-      <pre>{JSON.stringify(polls, null, 2)}</pre>
+          })}
+          <input type={"submit"} value={"Submit"} style={{marginTop: "1rem"}} />
+        </form>
+        <ul>
+          {points && points.map(({ id, ua, value}, index) => {
+            return (
+              <li key={`datapoint_${index}`}>
+                <pre>{id}</pre>
+                <pre>Browser: {JSON.stringify(new UAParser().getBrowser(ua))}</pre>
+                <pre>OS: {JSON.stringify(new UAParser().getOS(ua))}</pre>
+                <pre>Device: {JSON.stringify(new UAParser().getDevice(ua))}</pre>
+                <pre>{value}</pre>
+                {isAdmin && <button onClick={() => deleteItem(id)}>X</button>}
+              </li>
+            )
+          })}
+        </ul>
+        <pre>{JSON.stringify(polls, null, 2)}</pre>
+      </>}
       <Footer>
         SS2022 - Mobile Media - Leibniz FH
       </Footer>
