@@ -74,7 +74,7 @@ const App = () => {
   const [question, setQuestion] = useState("Title");
   const [answers, setAnswers] = useState(["", "", "", "", ""]);
   const [userId] = useLocalStorage("userId", uuid());
-  const [points, setPoints] = useState(null);
+  const [points, setPoints] = useState([]);
   const updateCacheCreatePoll = (
     cache,
     {
@@ -224,9 +224,7 @@ const App = () => {
   }, [data]);
 
   useEffect(() => {
-    if (!points) return
-
-    if (points?.findIndex(({id: dataId}) => userId === dataId) === -1) {
+    if (points.length === 0 || points?.findIndex(({id: dataId}) => userId === dataId) === -1) {
       const ua = new UAParser().getUA();
 
       createDataPoint({
@@ -236,6 +234,8 @@ const App = () => {
   }, [points]);
 
   useInterval(() => {
+    if (error) return;
+
     refetch().then(console.warn);
 
     getPolls().then(({ data: { polls } }) => {

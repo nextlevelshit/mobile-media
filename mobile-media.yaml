@@ -1,0 +1,18 @@
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+name: mobile-media
+region: fra
+services:
+  - dockerfile_path: Dockerfile
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: nextlevelshit/mobile-media
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    name: mobile-media
+    routes:
+      - path: /
+    source_dir: /
